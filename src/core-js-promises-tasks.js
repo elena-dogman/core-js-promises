@@ -56,8 +56,31 @@ function getPromiseResult(source) {
  * [Promise.resolve(1), Promise.reject(2), Promise.resolve(3)]  => Promise fulfilled with 1
  * [Promise.reject(1), Promise.reject(2), Promise.reject(3)]    => Promise rejected
  */
-function getFirstResolvedPromiseResult(/* promises */) {
-  throw new Error('Not implemented');
+function getFirstResolvedPromiseResult(promises) {
+  const wrappedPromises = promises.map((p) =>
+    p.catch((error) => {
+      throw new Error(JSON.stringify([error]));
+    })
+  );
+
+  return Promise.all(
+    wrappedPromises.map((p) =>
+      p.then(
+        (val) => Promise.reject(val),
+        (err) => err
+      )
+    )
+  )
+    .then(
+      (errors) => Promise.reject(errors),
+      (firstResolved) => firstResolved
+    )
+    .catch((firstResolvedOrErrors) => {
+      if (Array.isArray(firstResolvedOrErrors)) {
+        return Promise.reject(new Error('All promises were rejected'));
+      }
+      return Promise.resolve(firstResolvedOrErrors);
+    });
 }
 
 /**
